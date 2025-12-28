@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared/shared.dart';
+import '../service/service_request_screen.dart';
 
 class CustomerHomePage extends StatelessWidget {
   const CustomerHomePage({super.key});
@@ -76,24 +77,28 @@ class CustomerHomePage extends StatelessWidget {
                     'Tow Service',
                     Icons.local_shipping,
                     'Vehicle towing and transport',
+                    'tow',
                   ),
                   _buildServiceCard(
                     context,
                     'Jump Start',
                     Icons.battery_charging_full,
                     'Battery jump start service',
+                    'jumpstart',
                   ),
                   _buildServiceCard(
                     context,
                     'Fuel Delivery',
                     Icons.local_gas_station,
                     'Emergency fuel delivery',
+                    'fuel',
                   ),
                   _buildServiceCard(
                     context,
                     'Flat Tire',
                     Icons.tire_repair,
                     'Tire repair and replacement',
+                    'tire',
                   ),
                 ],
               ),
@@ -109,6 +114,7 @@ class CustomerHomePage extends StatelessWidget {
     String title,
     IconData icon,
     String description,
+    String serviceType,
   ) {
     return Card(
       elevation: AppDimensions.cardElevation,
@@ -117,10 +123,13 @@ class CustomerHomePage extends StatelessWidget {
       ),
       child: InkWell(
         onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('$title selected'),
-              backgroundColor: AppColors.primaryYellow,
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ServiceRequestScreen(
+                serviceType: serviceType,
+                serviceTitle: title,
+              ),
             ),
           );
         },
