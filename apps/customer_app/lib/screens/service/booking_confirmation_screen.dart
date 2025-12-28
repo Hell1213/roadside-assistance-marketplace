@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared/shared.dart';
+import '../payment/payment_method_screen.dart';
 
 class BookingConfirmationScreen extends StatefulWidget {
   final String serviceTitle;
@@ -42,55 +43,11 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
     setState(() => _isBooking = false);
 
     if (mounted) {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppDimensions.radiusL),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(AppDimensions.paddingL),
-                decoration: BoxDecoration(
-                  color: AppColors.success.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.check_circle,
-                  size: 64,
-                  color: AppColors.success,
-                ),
-              ),
-              const SizedBox(height: AppDimensions.paddingL),
-              Text(
-                'Booking Confirmed!',
-                style: AppTypography.h4.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: AppDimensions.paddingM),
-              Text(
-                'Finding nearby drivers...',
-                style: AppTypography.bodyMedium.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppDimensions.paddingL),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).popUntil((route) => route.isFirst);
-                  },
-                  child: const Text('Track Driver'),
-                ),
-              ),
-            ],
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PaymentMethodScreen(
+            amount: widget.totalFare,
           ),
         ),
       );
