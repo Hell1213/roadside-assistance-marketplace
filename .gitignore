@@ -40,3 +40,10 @@ logs
 # Build outputs
 dist/
 out/
+
+# Helper Documentation (local only)
+SETUP.md
+INSTALLATION.md
+TESTING_GUIDE.md
+COMMIT_PHASES.md
+PROGRESS.md
