@@ -2,13 +2,13 @@
 
 A comprehensive platform connecting customers needing roadside assistance with service providers. This repository contains the complete UI/UX implementation for all three applications.
 
-## 🚀 Features
+## 🔴 Features
 
 - **Customer App**: Request roadside assistance, track drivers, make payments
 - **Driver App**: Manage availability, accept jobs, track earnings
 - **Admin Panel**: Manage users, drivers, trips, pricing, and analytics
 
-## 📁 Project Structure
+## 🔴 Project Structure
 
 - `apps/customer_app/` - Flutter customer mobile app
 - `apps/driver_app/` - Flutter driver mobile app  
@@ -16,14 +16,14 @@ A comprehensive platform connecting customers needing roadside assistance with s
 - `packages/shared/` - Shared design system and constants
 - `assets/` - Shared assets (fonts, images)
 
-## 🛠️ Prerequisites
+## 🔴 Prerequisites
 
 - **Flutter SDK**: 3.16.0 or higher
 - **Node.js**: 18.0.0 or higher
 - **Git**: Latest version
 - **Chrome/Chromium**: For web testing
 
-## 🚀 Quick Start
+## 🔴 Quick Start
 
 ### 1. Clone the Repository
 ```bash
@@ -54,13 +54,13 @@ npm install
 npm run dev
 ```
 
-## 🌐 Access Applications
+## 🔴 Access Applications
 
 - **Customer App**: http://localhost:8080
 - **Driver App**: http://localhost:8081  
 - **Admin Panel**: http://localhost:3000
 
-## 🎨 Design System
+## 🔴 Design System
 
 The project uses a shared design system with:
 - **Primary Color**: Yellow (#fbbd00)
@@ -69,13 +69,13 @@ The project uses a shared design system with:
 - **Consistent spacing and components** across all apps
 
 
-## 🔧 Development Notes
+## 🔴 Development Notes
 
 - All apps are currently configured for web development
 - Mobile deployment requires additional platform setup
 - Design system is centralized in `packages/shared/`
 - Helper documentation files are excluded from repository
 
-## 📄 License
+## 🔴 License
 
 This project is proprietary software developed for roadside assistance marketplace.
