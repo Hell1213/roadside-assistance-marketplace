@@ -1,65 +1,113 @@
-import Image from "next/image";
+import Header from '@/components/Header';
+import Sidebar from '@/components/Sidebar';
 
 export default function Home() {
+  const stats = [
+    { name: 'Total Users', value: '2,847', change: '+12%', icon: '👥' },
+    { name: 'Active Drivers', value: '156', change: '+8%', icon: '🚗' },
+    { name: 'Today\'s Trips', value: '89', change: '+23%', icon: '🗺️' },
+    { name: 'Revenue', value: '₹45,230', change: '+15%', icon: '💰' },
+  ];
+
+  const recentTrips = [
+    { id: 'TRP001', customer: 'John Doe', driver: 'Mike Wilson', service: 'Tow Service', status: 'Completed', amount: '₹150' },
+    { id: 'TRP002', customer: 'Sarah Smith', driver: 'David Brown', service: 'Jump Start', status: 'In Progress', amount: '₹80' },
+    { id: 'TRP003', customer: 'Alex Johnson', driver: 'Tom Davis', service: 'Fuel Delivery', status: 'Assigned', amount: '₹120' },
+    { id: 'TRP004', customer: 'Emily Chen', driver: 'Chris Miller', service: 'Flat Tire', status: 'Completed', amount: '₹100' },
+  ];
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Completed': return 'bg-green-100 text-green-800';
+      case 'In Progress': return 'bg-blue-100 text-blue-800';
+      case 'Assigned': return 'bg-yellow-100 text-yellow-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+    <div className="flex h-screen bg-gray-50">
+      <Sidebar />
+      
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header />
+        
+        <main className="flex-1 overflow-y-auto p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {stats.map((stat) => (
+              <div key={stat.name} className="stat-card">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">{stat.name}</p>
+                    <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                  </div>
+                  <div className="text-2xl">{stat.icon}</div>
+                </div>
+                <div className="mt-2">
+                  <span className="text-sm font-medium text-green-600">{stat.change}</span>
+                  <span className="text-sm text-gray-600"> from last month</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="card">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Trips</h3>
+              <div className="overflow-x-auto">
+                <table className="min-w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-2 text-sm font-medium text-gray-600">Trip ID</th>
+                      <th className="text-left py-2 text-sm font-medium text-gray-600">Customer</th>
+                      <th className="text-left py-2 text-sm font-medium text-gray-600">Service</th>
+                      <th className="text-left py-2 text-sm font-medium text-gray-600">Status</th>
+                      <th className="text-left py-2 text-sm font-medium text-gray-600">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentTrips.map((trip) => (
+                      <tr key={trip.id} className="border-b border-gray-100">
+                        <td className="py-3 text-sm font-medium text-gray-900">{trip.id}</td>
+                        <td className="py-3 text-sm text-gray-600">{trip.customer}</td>
+                        <td className="py-3 text-sm text-gray-600">{trip.service}</td>
+                        <td className="py-3">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(trip.status)}`}>
+                            {trip.status}
+                          </span>
+                        </td>
+                        <td className="py-3 text-sm font-medium text-gray-900">{trip.amount}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="card">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+              <div className="space-y-3">
+                <button className="w-full btn-primary text-left">
+                  <span className="mr-2">👥</span>
+                  Manage Users
+                </button>
+                <button className="w-full btn-secondary text-left">
+                  <span className="mr-2">🚗</span>
+                  Verify Drivers
+                </button>
+                <button className="w-full bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded-lg transition-colors text-left">
+                  <span className="mr-2">💰</span>
+                  Update Pricing
+                </button>
+                <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors text-left">
+                  <span className="mr-2">📈</span>
+                  View Reports
+                </button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
