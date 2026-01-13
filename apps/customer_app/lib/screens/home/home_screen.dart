@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared/shared.dart';
-import '../service/service_request_screen.dart';
+import '../location/location_choice_screen.dart';
 
 class CustomerHomePage extends StatelessWidget {
   const CustomerHomePage({super.key});
@@ -123,15 +123,24 @@ class CustomerHomePage extends StatelessWidget {
       ),
       child: InkWell(
         onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ServiceRequestScreen(
-                serviceType: serviceType,
-                serviceTitle: title,
+          if (serviceType == 'tow') {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => LocationChoiceScreen(
+                  serviceType: serviceType,
+                  serviceTitle: title,
+                ),
               ),
-            ),
-          );
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('$title service coming soon!'),
+                backgroundColor: AppColors.primaryYellow,
+              ),
+            );
+          }
         },
         borderRadius: BorderRadius.circular(AppDimensions.radiusL),
         child: Padding(
