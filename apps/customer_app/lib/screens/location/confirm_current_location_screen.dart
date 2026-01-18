@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared/shared.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart';
+import '../../services/location_service.dart';
 import 'drop_location_screen.dart';
 
 class ConfirmCurrentLocationScreen extends StatefulWidget {
@@ -17,8 +20,11 @@ class ConfirmCurrentLocationScreen extends StatefulWidget {
 }
 
 class _ConfirmCurrentLocationScreenState extends State<ConfirmCurrentLocationScreen> {
+  GoogleMapController? _mapController;
   String _currentAddress = 'Fetching location...';
   bool _isLoading = true;
+  LatLng? _currentPosition;
+  Set<Marker> _markers = {};
 
   @override
   void initState() {
@@ -27,11 +33,44 @@ class _ConfirmCurrentLocationScreenState extends State<ConfirmCurrentLocationScr
   }
 
   Future<void> _getCurrentLocation() async {
-    await Future.delayed(const Duration(seconds: 2));
-    setState(() {
-      _currentAddress = '123 Main Street, City, State 12345';
-      _isLoading = false;
-    });
+    try {
+      Position? position = await LocationService.getCurrentLocation();
+      
+      if (position != null) {
+        final latLng = LatLng(position.latitude, position.longitude);
+        final address = await LocationService.getAddressFromCoordinates(
+          position.latitude,
+          position.longitude,
+        );
+
+        setState(() {
+          _currentPosition = latLng;
+          _currentAddress = address;
+          _isLoading = false;
+          _markers = {
+            Marker(
+              markerId: const MarkerId('current_location'),
+              position: latLng,
+              infoWindow: const InfoWindow(title: 'Your Location'),
+            ),
+          };
+        });
+
+        _mapController?.animateCamera(
+          CameraUpdate.newLatLngZoom(latLng, 15),
+        );
+      } else {
+        setState(() {
+          _currentAddress = 'Unable to get location. Please enable location services.';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _currentAddress = 'Error getting location: $e';
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -56,27 +95,24 @@ class _ConfirmCurrentLocationScreenState extends State<ConfirmCurrentLocationScr
       ),
       body: Stack(
         children: [
-          Container(
-            color: Colors.grey[200],
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.location_on,
-                    size: 80,
-                    color: AppColors.primaryYellow,
-                  ),
-                  const SizedBox(height: AppDimensions.paddingM),
-                  Text(
-                    'Your Location',
-                    style: AppTypography.h6.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
+          GoogleMap(
+            initialCameraPosition: const CameraPosition(
+              target: LatLng(28.6139, 77.2090),
+              zoom: 12,
             ),
+            onMapCreated: (GoogleMapController controller) {
+              _mapController = controller;
+              if (_currentPosition != null) {
+                controller.animateCamera(
+                  CameraUpdate.newLatLngZoom(_currentPosition!, 15),
+                );
+              }
+            },
+            markers: _markers,
+            myLocationEnabled: true,
+            myLocationButtonEnabled: false,
+            zoomControlsEnabled: false,
+            mapToolbarEnabled: false,
           ),
           Positioned(
             bottom: 0,
@@ -138,7 +174,7 @@ class _ConfirmCurrentLocationScreenState extends State<ConfirmCurrentLocationScr
                   ),
                   const SizedBox(height: AppDimensions.paddingXL),
                   ElevatedButton(
-                    onPressed: _isLoading
+                    onPressed: _isLoading || _currentPosition == null
                         ? null
                         : () {
                             Navigator.push(
@@ -177,5 +213,11 @@ class _ConfirmCurrentLocationScreenState extends State<ConfirmCurrentLocationScr
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _mapController?.dispose();
+    super.dispose();
   }
 }
