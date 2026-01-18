@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:shared/shared.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'confirm_current_location_screen.dart';
 import 'manual_pickup_location_screen.dart';
 
-class LocationChoiceScreen extends StatelessWidget {
+class LocationChoiceScreen extends StatefulWidget {
   final String serviceType;
   final String serviceTitle;
 
@@ -14,12 +15,20 @@ class LocationChoiceScreen extends StatelessWidget {
   });
 
   @override
+  State<LocationChoiceScreen> createState() => _LocationChoiceScreenState();
+}
+
+class _LocationChoiceScreenState extends State<LocationChoiceScreen> {
+  GoogleMapController? _mapController;
+  static const LatLng _defaultLocation = LatLng(28.6139, 77.2090); // Delhi
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(
-          serviceTitle,
+          widget.serviceTitle,
           style: AppTypography.h5.copyWith(
             color: AppColors.textPrimary,
             fontWeight: FontWeight.w600,
@@ -35,15 +44,18 @@ class LocationChoiceScreen extends StatelessWidget {
       ),
       body: Stack(
         children: [
-          Container(
-            color: Colors.grey[200],
-            child: Center(
-              child: Icon(
-                Icons.map,
-                size: 100,
-                color: Colors.grey[400],
-              ),
+          GoogleMap(
+            initialCameraPosition: const CameraPosition(
+              target: _defaultLocation,
+              zoom: 12,
             ),
+            onMapCreated: (GoogleMapController controller) {
+              _mapController = controller;
+            },
+            myLocationEnabled: true,
+            myLocationButtonEnabled: false,
+            zoomControlsEnabled: false,
+            mapToolbarEnabled: false,
           ),
           Positioned(
             bottom: 0,
@@ -88,8 +100,8 @@ class LocationChoiceScreen extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (context) => ConfirmCurrentLocationScreen(
-                            serviceType: serviceType,
-                            serviceTitle: serviceTitle,
+                            serviceType: widget.serviceType,
+                            serviceTitle: widget.serviceTitle,
                           ),
                         ),
                       );
@@ -126,8 +138,8 @@ class LocationChoiceScreen extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (context) => ManualPickupLocationScreen(
-                            serviceType: serviceType,
-                            serviceTitle: serviceTitle,
+                            serviceType: widget.serviceType,
+                            serviceTitle: widget.serviceTitle,
                           ),
                         ),
                       );
@@ -164,5 +176,11 @@ class LocationChoiceScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _mapController?.dispose();
+    super.dispose();
   }
 }
