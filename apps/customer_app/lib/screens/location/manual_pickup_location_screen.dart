@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared/shared.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import '../../services/location_service.dart';
 import 'drop_location_screen.dart';
 
 class ManualPickupLocationScreen extends StatefulWidget {
@@ -17,35 +19,75 @@ class ManualPickupLocationScreen extends StatefulWidget {
 }
 
 class _ManualPickupLocationScreenState extends State<ManualPickupLocationScreen> {
+  GoogleMapController? _mapController;
   final TextEditingController _addressController = TextEditingController();
   String? _selectedAddress;
+  LatLng? _selectedPosition;
   bool _showDropdown = false;
-
-  final List<String> _suggestedAddresses = [
-    '123 Main Street, City, State 12345',
-    '456 Oak Avenue, City, State 12346',
-    '789 Pine Road, City, State 12347',
-    '321 Elm Street, City, State 12348',
-  ];
+  bool _isSearching = false;
+  List<String> _suggestedAddresses = [];
+  Set<Marker> _markers = {};
 
   @override
   void dispose() {
     _addressController.dispose();
+    _mapController?.dispose();
     super.dispose();
   }
 
-  void _onAddressChanged(String value) {
+  Future<void> _onAddressChanged(String value) async {
+    if (value.isEmpty) {
+      setState(() {
+        _showDropdown = false;
+        _suggestedAddresses = [];
+      });
+      return;
+    }
+
     setState(() {
-      _showDropdown = value.isNotEmpty;
+      _isSearching = true;
+      _showDropdown = true;
     });
+
+    try {
+      List<String> results = await LocationService.searchPlaces(value);
+      setState(() {
+        _suggestedAddresses = results;
+        _isSearching = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isSearching = false;
+        _suggestedAddresses = [];
+      });
+    }
   }
 
-  void _selectAddress(String address) {
+  Future<void> _selectAddress(String address) async {
     setState(() {
       _addressController.text = address;
       _selectedAddress = address;
       _showDropdown = false;
     });
+
+    // Get coordinates for the selected address
+    LatLng? position = await LocationService.getCoordinatesFromAddress(address);
+    if (position != null) {
+      setState(() {
+        _selectedPosition = position;
+        _markers = {
+          Marker(
+            markerId: const MarkerId('selected_location'),
+            position: position,
+            infoWindow: InfoWindow(title: 'Pickup Location', snippet: address),
+          ),
+        };
+      });
+
+      _mapController?.animateCamera(
+        CameraUpdate.newLatLngZoom(position, 15),
+      );
+    }
   }
 
   void _confirmLocation() {
@@ -116,15 +158,19 @@ class _ManualPickupLocationScreenState extends State<ManualPickupLocationScreen>
       ),
       body: Stack(
         children: [
-          Container(
-            color: Colors.grey[200],
-            child: Center(
-              child: Icon(
-                Icons.map,
-                size: 100,
-                color: Colors.grey[400],
-              ),
+          GoogleMap(
+            initialCameraPosition: const CameraPosition(
+              target: LatLng(28.6139, 77.2090),
+              zoom: 12,
             ),
+            onMapCreated: (GoogleMapController controller) {
+              _mapController = controller;
+            },
+            markers: _markers,
+            myLocationEnabled: true,
+            myLocationButtonEnabled: false,
+            zoomControlsEnabled: false,
+            mapToolbarEnabled: false,
           ),
           Positioned(
             bottom: 0,
@@ -163,6 +209,16 @@ class _ManualPickupLocationScreenState extends State<ManualPickupLocationScreen>
                     decoration: InputDecoration(
                       hintText: 'Type your address...',
                       prefixIcon: Icon(Icons.search, color: AppColors.primaryYellow),
+                      suffixIcon: _isSearching
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: Padding(
+                                padding: EdgeInsets.all(12.0),
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                            )
+                          : null,
                       filled: true,
                       fillColor: AppColors.background,
                       border: OutlineInputBorder(
@@ -179,7 +235,7 @@ class _ManualPickupLocationScreenState extends State<ManualPickupLocationScreen>
                       ),
                     ),
                   ),
-                  if (_showDropdown) ...[
+                  if (_showDropdown && _suggestedAddresses.isNotEmpty) ...[
                     const SizedBox(height: AppDimensions.paddingS),
                     Container(
                       constraints: const BoxConstraints(maxHeight: 200),
