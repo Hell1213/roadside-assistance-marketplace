@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:shared/shared.dart';
 import 'screens/home/home_screen.dart';
+import 'config/app_config.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await AppConfig.initialize();
   runApp(const CustomerApp());
 }
 
