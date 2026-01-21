@@ -25,7 +25,7 @@ class _ManualPickupLocationScreenState extends State<ManualPickupLocationScreen>
   LatLng? _selectedPosition;
   bool _showDropdown = false;
   bool _isSearching = false;
-  List<String> _suggestedAddresses = [];
+  List<Map<String, String>> _suggestedAddresses = [];
   Set<Marker> _markers = {};
 
   @override
@@ -36,7 +36,7 @@ class _ManualPickupLocationScreenState extends State<ManualPickupLocationScreen>
   }
 
   Future<void> _onAddressChanged(String value) async {
-    if (value.isEmpty) {
+    if (value.isEmpty || value.length < 3) {
       setState(() {
         _showDropdown = false;
         _suggestedAddresses = [];
@@ -50,12 +50,13 @@ class _ManualPickupLocationScreenState extends State<ManualPickupLocationScreen>
     });
 
     try {
-      List<String> results = await LocationService.searchPlaces(value);
+      List<Map<String, String>> results = await LocationService.searchPlaces(value);
       setState(() {
         _suggestedAddresses = results;
         _isSearching = false;
       });
     } catch (e) {
+      print('Error searching: $e');
       setState(() {
         _isSearching = false;
         _suggestedAddresses = [];
@@ -63,15 +64,18 @@ class _ManualPickupLocationScreenState extends State<ManualPickupLocationScreen>
     }
   }
 
-  Future<void> _selectAddress(String address) async {
+  Future<void> _selectAddress(Map<String, String> place) async {
+    final description = place['description']!;
+    final placeId = place['place_id']!;
+    
     setState(() {
-      _addressController.text = address;
-      _selectedAddress = address;
+      _addressController.text = description;
+      _selectedAddress = description;
       _showDropdown = false;
     });
 
-    // Get coordinates for the selected address
-    LatLng? position = await LocationService.getCoordinatesFromAddress(address);
+    // Get coordinates for the selected place
+    LatLng? position = await LocationService.getPlaceDetails(placeId);
     if (position != null) {
       setState(() {
         _selectedPosition = position;
@@ -79,7 +83,7 @@ class _ManualPickupLocationScreenState extends State<ManualPickupLocationScreen>
           Marker(
             markerId: const MarkerId('selected_location'),
             position: position,
-            infoWindow: InfoWindow(title: 'Pickup Location', snippet: address),
+            infoWindow: InfoWindow(title: 'Pickup Location', snippet: description),
           ),
         };
       });
@@ -238,27 +242,46 @@ class _ManualPickupLocationScreenState extends State<ManualPickupLocationScreen>
                   if (_showDropdown && _suggestedAddresses.isNotEmpty) ...[
                     const SizedBox(height: AppDimensions.paddingS),
                     Container(
-                      constraints: const BoxConstraints(maxHeight: 200),
+                      constraints: const BoxConstraints(maxHeight: 250),
                       decoration: BoxDecoration(
                         color: AppColors.white,
                         borderRadius: BorderRadius.circular(AppDimensions.radiusM),
-                        border: Border.all(color: AppColors.primaryYellow),
+                        border: Border.all(color: AppColors.primaryYellow, width: 2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
-                      child: ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: _suggestedAddresses.length,
-                        itemBuilder: (context, index) {
-                          return ListTile(
-                            leading: Icon(Icons.location_on, color: AppColors.primaryYellow),
-                            title: Text(
-                              _suggestedAddresses[index],
-                              style: AppTypography.bodyMedium.copyWith(
-                                color: AppColors.textPrimary,
+                      child: Material(
+                        color: Colors.transparent,
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          padding: EdgeInsets.zero,
+                          itemCount: _suggestedAddresses.length,
+                          separatorBuilder: (context, index) => Divider(
+                            height: 1,
+                            color: AppColors.primaryYellow.withOpacity(0.2),
+                          ),
+                          itemBuilder: (context, index) {
+                            final place = _suggestedAddresses[index];
+                            return ListTile(
+                              dense: false,
+                              leading: Icon(Icons.location_on, color: AppColors.primaryYellow, size: 24),
+                              title: Text(
+                                place['description']!,
+                                style: AppTypography.bodyMedium.copyWith(
+                                  color: AppColors.textPrimary,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
-                            ),
-                            onTap: () => _selectAddress(_suggestedAddresses[index]),
-                          );
-                        },
+                              onTap: () => _selectAddress(place),
+                              hoverColor: AppColors.primaryYellow.withOpacity(0.1),
+                            );
+                          },
+                        ),
                       ),
                     ),
                   ],
