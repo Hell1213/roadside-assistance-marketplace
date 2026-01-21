@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared/shared.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import '../../services/location_service.dart';
 import 'confirm_current_location_screen.dart';
 import 'manual_pickup_location_screen.dart';
 
@@ -21,6 +22,17 @@ class LocationChoiceScreen extends StatefulWidget {
 class _LocationChoiceScreenState extends State<LocationChoiceScreen> {
   GoogleMapController? _mapController;
   static const LatLng _defaultLocation = LatLng(28.6139, 77.2090); // Delhi
+
+  @override
+  void initState() {
+    super.initState();
+    // Request location permission immediately when screen loads
+    _requestLocationPermission();
+  }
+
+  Future<void> _requestLocationPermission() async {
+    await LocationService.checkPermissions();
+  }
 
   @override
   Widget build(BuildContext context) {
