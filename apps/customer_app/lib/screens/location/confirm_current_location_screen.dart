@@ -34,42 +34,52 @@ class _ConfirmCurrentLocationScreenState extends State<ConfirmCurrentLocationScr
 
   Future<void> _getCurrentLocation() async {
     try {
+      print('Requesting current location...');
       Position? position = await LocationService.getCurrentLocation();
       
       if (position != null) {
+        print('Got position: ${position.latitude}, ${position.longitude}');
         final latLng = LatLng(position.latitude, position.longitude);
         final address = await LocationService.getAddressFromCoordinates(
           position.latitude,
           position.longitude,
         );
 
-        setState(() {
-          _currentPosition = latLng;
-          _currentAddress = address;
-          _isLoading = false;
-          _markers = {
-            Marker(
-              markerId: const MarkerId('current_location'),
-              position: latLng,
-              infoWindow: const InfoWindow(title: 'Your Location'),
-            ),
-          };
-        });
+        if (mounted) {
+          setState(() {
+            _currentPosition = latLng;
+            _currentAddress = address;
+            _isLoading = false;
+            _markers = {
+              Marker(
+                markerId: const MarkerId('current_location'),
+                position: latLng,
+                infoWindow: const InfoWindow(title: 'Your Location'),
+              ),
+            };
+          });
 
-        _mapController?.animateCamera(
-          CameraUpdate.newLatLngZoom(latLng, 15),
-        );
+          _mapController?.animateCamera(
+            CameraUpdate.newLatLngZoom(latLng, 15),
+          );
+        }
       } else {
+        print('Position is null - location permission denied or unavailable');
+        if (mounted) {
+          setState(() {
+            _currentAddress = 'Unable to get location. Please allow location access in your browser.';
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      print('Error in _getCurrentLocation: $e');
+      if (mounted) {
         setState(() {
-          _currentAddress = 'Unable to get location. Please enable location services.';
+          _currentAddress = 'Error getting location. Please try again.';
           _isLoading = false;
         });
       }
-    } catch (e) {
-      setState(() {
-        _currentAddress = 'Error getting location: $e';
-        _isLoading = false;
-      });
     }
   }
 
@@ -155,13 +165,28 @@ class _ConfirmCurrentLocationScreenState extends State<ConfirmCurrentLocationScr
                     child: Row(
                       children: [
                         Icon(
-                          Icons.location_on,
-                          color: AppColors.primaryYellow,
+                          _currentPosition == null ? Icons.error_outline : Icons.location_on,
+                          color: _currentPosition == null ? Colors.red : AppColors.primaryYellow,
                         ),
                         const SizedBox(width: AppDimensions.paddingM),
                         Expanded(
                           child: _isLoading
-                              ? const CircularProgressIndicator()
+                              ? Row(
+                                  children: [
+                                    const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    ),
+                                    const SizedBox(width: AppDimensions.paddingM),
+                                    Text(
+                                      'Getting your location...',
+                                      style: AppTypography.bodyMedium.copyWith(
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                )
                               : Text(
                                   _currentAddress,
                                   style: AppTypography.bodyMedium.copyWith(
@@ -169,6 +194,17 @@ class _ConfirmCurrentLocationScreenState extends State<ConfirmCurrentLocationScr
                                   ),
                                 ),
                         ),
+                        if (!_isLoading && _currentPosition == null)
+                          IconButton(
+                            icon: Icon(Icons.refresh, color: AppColors.primaryYellow),
+                            onPressed: () {
+                              setState(() {
+                                _isLoading = true;
+                                _currentAddress = 'Fetching location...';
+                              });
+                              _getCurrentLocation();
+                            },
+                          ),
                       ],
                     ),
                   ),
