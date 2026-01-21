@@ -1,100 +1,184 @@
-import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
+import 'dart:async';
+import 'dart:js' as js;
+import 'dart:html' as html;
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart';
 
 class LocationService {
   // Check and request location permissions
-  static Future<bool> checkPermissions() async {
-    bool serviceEnabled;
-    LocationPermission permission;
-
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      return false;
-    }
-
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        return false;
-      }
-    }
-
-    if (permission == LocationPermission.deniedForever) {
-      return false;
-    }
-
-    return true;
+  static Future<void> checkPermissions() async {
+    // For web, permissions are handled by browser
+    // This is a no-op but kept for compatibility
   }
 
-  // Get current location
+  // Get current location using browser's geolocation API with high accuracy
   static Future<Position?> getCurrentLocation() async {
+    final completer = Completer<Position?>();
+    
     try {
-      bool hasPermission = await checkPermissions();
-      if (!hasPermission) {
+      // Check if geolocation is available
+      if (html.window.navigator.geolocation == null) {
+        print('Geolocation not supported');
         return null;
       }
 
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+      print('Requesting geolocation with high accuracy...');
+      
+      // Use watchPosition to get immediate location
+      final watchId = html.window.navigator.geolocation.watchPosition(
+        enableHighAccuracy: true,
+        timeout: Duration(seconds: 15),
+        maximumAge: Duration(seconds: 0),
       );
-      return position;
+      
+      // Listen to the first position
+      watchId.listen(
+        (html.Geoposition position) {
+          if (!completer.isCompleted) {
+            print('Location received: ${position.coords!.latitude}, ${position.coords!.longitude}');
+            final coords = position.coords!;
+            
+            completer.complete(Position(
+              latitude: coords.latitude!.toDouble(),
+              longitude: coords.longitude!.toDouble(),
+              timestamp: DateTime.now(),
+              accuracy: coords.accuracy!.toDouble(),
+              altitude: coords.altitude?.toDouble() ?? 0.0,
+              altitudeAccuracy: coords.altitudeAccuracy?.toDouble() ?? 0.0,
+              heading: coords.heading?.toDouble() ?? 0.0,
+              headingAccuracy: 0.0,
+              speed: coords.speed?.toDouble() ?? 0.0,
+              speedAccuracy: 0.0,
+            ));
+          }
+        },
+        onError: (error) {
+          if (!completer.isCompleted) {
+            print('Geolocation error: $error');
+            completer.complete(null);
+          }
+        },
+        cancelOnError: true,
+      );
+      
+      // Timeout fallback
+      Future.delayed(Duration(seconds: 20), () {
+        if (!completer.isCompleted) {
+          print('Geolocation timeout');
+          completer.complete(null);
+        }
+      });
+      
     } catch (e) {
       print('Error getting location: $e');
       return null;
     }
+    
+    return completer.future;
   }
 
-  // Get address from coordinates
+  // Reverse geocode coordinates to address using Google Maps Geocoder
   static Future<String> getAddressFromCoordinates(double lat, double lng) async {
+    final completer = Completer<String>();
+    
     try {
-      List<Placemark> placemarks = await placemarkFromCoordinates(lat, lng);
-      if (placemarks.isNotEmpty) {
-        Placemark place = placemarks[0];
-        return '${place.street}, ${place.locality}, ${place.administrativeArea} ${place.postalCode}';
-      }
-      return 'Unknown location';
+      final geocoder = js.JsObject(js.context['google']['maps']['Geocoder']);
+      final latLng = js.JsObject(
+        js.context['google']['maps']['LatLng'],
+        [lat, lng],
+      );
+      
+      geocoder.callMethod('geocode', [
+        js.JsObject.jsify({'location': latLng}),
+        js.allowInterop((results, status) {
+          if (status == 'OK' && results != null && results.length > 0) {
+            completer.complete(results[0]['formatted_address']);
+          } else {
+            completer.complete('$lat, $lng');
+          }
+        })
+      ]);
     } catch (e) {
-      print('Error getting address: $e');
-      return 'Unable to get address';
+      print('Geocoding error: $e');
+      completer.complete('$lat, $lng');
     }
+    
+    return completer.future;
   }
 
-  // Get coordinates from address (for search)
-  static Future<LatLng?> getCoordinatesFromAddress(String address) async {
+  // Search places using Google Maps Places Autocomplete
+  static Future<List<Map<String, String>>> searchPlaces(String query) async {
+    if (query.isEmpty || query.length < 3) return [];
+    
+    final completer = Completer<List<Map<String, String>>>();
+    
     try {
-      List<Location> locations = await locationFromAddress(address);
-      if (locations.isNotEmpty) {
-        return LatLng(locations[0].latitude, locations[0].longitude);
-      }
-      return null;
+      final service = js.JsObject(
+        js.context['google']['maps']['places']['AutocompleteService'],
+      );
+      
+      service.callMethod('getPlacePredictions', [
+        js.JsObject.jsify({
+          'input': query,
+          'componentRestrictions': {'country': 'in'},
+        }),
+        js.allowInterop((predictions, status) {
+          if (status == 'OK' && predictions != null) {
+            final results = <Map<String, String>>[];
+            for (var i = 0; i < predictions.length; i++) {
+              final prediction = predictions[i];
+              results.add({
+                'description': prediction['description'].toString(),
+                'place_id': prediction['place_id'].toString(),
+              });
+            }
+            completer.complete(results);
+          } else {
+            completer.complete([]);
+          }
+        })
+      ]);
     } catch (e) {
-      print('Error getting coordinates: $e');
-      return null;
+      print('Places search error: $e');
+      completer.complete([]);
     }
+    
+    return completer.future;
   }
 
-  // Search for places (simplified - in production use Places API)
-  static Future<List<String>> searchPlaces(String query) async {
-    // This is a simplified version
-    // In production, use Google Places API for autocomplete
+  // Get place details and coordinates from place_id
+  static Future<LatLng?> getPlaceDetails(String placeId) async {
+    final completer = Completer<LatLng?>();
+    
     try {
-      List<Location> locations = await locationFromAddress(query);
-      List<String> results = [];
+      final map = js.JsObject(
+        js.context['google']['maps']['Map'],
+        [html.document.createElement('div')],
+      );
       
-      for (var location in locations.take(5)) {
-        String address = await getAddressFromCoordinates(
-          location.latitude,
-          location.longitude,
-        );
-        results.add(address);
-      }
+      final service = js.JsObject(
+        js.context['google']['maps']['places']['PlacesService'],
+        [map],
+      );
       
-      return results;
+      service.callMethod('getDetails', [
+        js.JsObject.jsify({'placeId': placeId}),
+        js.allowInterop((place, status) {
+          if (status == 'OK' && place != null) {
+            final location = place['geometry']['location'];
+            final lat = location.callMethod('lat').toDouble();
+            final lng = location.callMethod('lng').toDouble();
+            completer.complete(LatLng(lat, lng));
+          } else {
+            completer.complete(null);
+          }
+        })
+      ]);
     } catch (e) {
-      print('Error searching places: $e');
-      return [];
+      print('Place details error: $e');
+      completer.complete(null);
     }
+    
+    return completer.future;
   }
 }
