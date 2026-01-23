@@ -1,6 +1,5 @@
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
 import 'location_service_platform.dart'
     if (dart.library.html) 'location_service_web.dart'
     if (dart.library.io) 'location_service_mobile.dart';
@@ -58,30 +57,9 @@ class LocationService {
     }
   }
 
-  // Reverse geocode coordinates to address
+  // Reverse geocode coordinates to address - delegates to platform-specific implementation
   static Future<String> getAddressFromCoordinates(double lat, double lng) async {
-    try {
-      final placemarks = await placemarkFromCoordinates(lat, lng);
-      
-      if (placemarks.isNotEmpty) {
-        final place = placemarks.first;
-        final addressParts = [
-          place.street,
-          place.subLocality,
-          place.locality,
-          place.administrativeArea,
-          place.postalCode,
-          place.country,
-        ].where((part) => part != null && part.isNotEmpty).toList();
-        
-        return addressParts.join(', ');
-      }
-      
-      return '$lat, $lng';
-    } catch (e) {
-      print('Geocoding error: $e');
-      return '$lat, $lng';
-    }
+    return LocationServicePlatform.getAddressFromCoordinates(lat, lng);
   }
 
   // Search places - delegates to platform-specific implementation
