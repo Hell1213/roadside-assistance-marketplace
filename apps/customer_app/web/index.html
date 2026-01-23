@@ -34,6 +34,91 @@
   
   <!-- Google Maps JavaScript API with Places library -->
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBuxdTJwN8iwsExb-3QhueOmfXhBaum14U&libraries=places"></script>
+  
+  <script>
+    // Initialize Places Autocomplete Service
+    let autocompleteService;
+    let placesService;
+    
+    function initializePlacesServices() {
+      if (typeof google !== 'undefined' && google.maps && google.maps.places) {
+        autocompleteService = new google.maps.places.AutocompleteService();
+        // Create a dummy div for PlacesService (required by API)
+        const dummyDiv = document.createElement('div');
+        placesService = new google.maps.places.PlacesService(dummyDiv);
+      }
+    }
+    
+    // Get autocomplete predictions
+    window.getAutocompletePredictions = function(input, callback) {
+      if (!autocompleteService) {
+        initializePlacesServices();
+      }
+      
+      if (!autocompleteService) {
+        console.error('Autocomplete service not initialized');
+        callback(null);
+        return;
+      }
+      
+      autocompleteService.getPlacePredictions(
+        {
+          input: input,
+          componentRestrictions: { country: 'in' }
+        },
+        function(predictions, status) {
+          if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
+            const results = predictions.map(p => ({
+              description: p.description,
+              place_id: p.place_id
+            }));
+            callback(results);
+          } else {
+            console.error('Autocomplete error:', status);
+            callback(null);
+          }
+        }
+      );
+    };
+    
+    // Get place details
+    window.getPlaceDetails = function(placeId, callback) {
+      if (!placesService) {
+        initializePlacesServices();
+      }
+      
+      if (!placesService) {
+        console.error('Places service not initialized');
+        callback(null);
+        return;
+      }
+      
+      placesService.getDetails(
+        {
+          placeId: placeId,
+          fields: ['geometry']
+        },
+        function(place, status) {
+          if (status === google.maps.places.PlacesServiceStatus.OK && place && place.geometry) {
+            callback({
+              lat: place.geometry.location.lat(),
+              lng: place.geometry.location.lng()
+            });
+          } else {
+            console.error('Place details error:', status);
+            callback(null);
+          }
+        }
+      );
+    };
+    
+    // Initialize services when page loads
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initializePlacesServices);
+    } else {
+      initializePlacesServices();
+    }
+  </script>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>
