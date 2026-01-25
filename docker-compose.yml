@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: ras_postgres
+    environment:
+      POSTGRES_USER: ras
+      POSTGRES_PASSWORD: ras
+      POSTGRES_DB: ras
+    ports:
+      - "5433:5432"
+    volumes:
+      - ras_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ras -d ras"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: ras_redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - ras_redis_data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  ras_pg_data:
+  ras_redis_data:
