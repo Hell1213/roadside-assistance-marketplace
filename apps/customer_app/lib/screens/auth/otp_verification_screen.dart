@@ -1,14 +1,19 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:shared/shared.dart';
+import '../../providers/auth_provider.dart';
+import '../../screens/home/home_screen.dart';
 
 class OTPVerificationScreen extends StatefulWidget {
   final String phoneNumber;
+  final String? role; // 'CUSTOMER', 'DRIVER', 'ADMIN'
 
   const OTPVerificationScreen({
     super.key,
     required this.phoneNumber,
+    this.role,
   });
 
   @override
@@ -26,6 +31,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
   bool _canResend = false;
   int _resendTimer = 60;
   Timer? _timer;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -68,19 +74,38 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
   Future<void> _resendOTP() async {
     if (!_canResend) return;
 
-    for (var controller in _otpControllers) {
-      controller.clear();
+    setState(() {
+      _errorMessage = null;
+    });
+
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final role = widget.role ?? 'CUSTOMER';
+      
+      await authProvider.requestOtp(
+        phone: widget.phoneNumber,
+        role: role,
+      );
+
+      for (var controller in _otpControllers) {
+        controller.clear();
+      }
+      _focusNodes[0].requestFocus();
+      _startResendTimer();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('OTP sent successfully'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
+      });
     }
-    _focusNodes[0].requestFocus();
-
-    _startResendTimer();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('OTP sent successfully'),
-        backgroundColor: AppColors.success,
-      ),
-    );
   }
 
   Future<void> _verifyOTP() async {
@@ -96,23 +121,46 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
       return;
     }
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
 
-    await Future.delayed(const Duration(seconds: 2));
-
-    setState(() => _isLoading = false);
-
-    if (mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (context) => const Scaffold(
-            body: Center(
-              child: Text('Authentication Successful!'),
-            ),
-          ),
-        ),
-        (route) => false,
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      
+      // Get device ID (for web, use a simple identifier)
+      final deviceId = 'web-${DateTime.now().millisecondsSinceEpoch}';
+      
+      final role = widget.role ?? 'CUSTOMER';
+      
+      await authProvider.verifyOtp(
+        phone: widget.phoneNumber,
+        otp: otp,
+        role: role,
+        deviceId: deviceId,
       );
+
+      if (mounted) {
+        // Navigate to home screen and clear navigation stack
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (context) => const CustomerHomePage(),
+          ),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _isLoading = false;
+      });
+      
+      // Clear OTP fields on error
+      for (var controller in _otpControllers) {
+        controller.clear();
+      }
+      _focusNodes[0].requestFocus();
     }
   }
 
@@ -163,6 +211,32 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                   color: AppColors.textSecondary,
                 ),
               ),
+              
+              if (_errorMessage != null) ...[
+                const SizedBox(height: AppDimensions.paddingM),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.error),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.error_outline, color: AppColors.error, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _errorMessage!,
+                          style: AppTypography.bodyMedium.copyWith(
+                            color: AppColors.error,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               
               const SizedBox(height: AppDimensions.paddingXXL),
               
