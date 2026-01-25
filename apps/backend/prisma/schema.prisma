@@ -1,0 +1,595 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  CUSTOMER
+  DRIVER
+  ADMIN
+}
+
+enum DriverStatus {
+  OFFLINE
+  ONLINE
+  BUSY
+  SUSPENDED
+}
+
+enum KycStatus {
+  NOT_SUBMITTED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum ServiceCode {
+  TOW
+  JUMP_START
+  FUEL_DELIVERY
+  FLAT_TYRE
+}
+
+enum JobState {
+  CREATED
+  DISPATCHING
+  ASSIGNED
+  ARRIVING
+  ARRIVED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PaymentMethod {
+  CARD
+  UPI
+  NETBANKING
+  WALLET
+  RAZORPAY_WALLET
+}
+
+enum TransactionType {
+  CREDIT
+  DEBIT
+}
+
+enum TransactionCategory {
+  PAYMENT
+  COMMISSION
+  PAYOUT
+  REFUND
+  ADJUSTMENT
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum NotificationType {
+  PUSH
+  SMS
+  EMAIL
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  DELIVERED
+}
+
+enum NotificationCategory {
+  JOB_ASSIGNED
+  JOB_STATUS_UPDATE
+  PAYMENT_SUCCESS
+  PAYMENT_FAILED
+  PAYOUT_PROCESSED
+  DRIVER_ARRIVED
+  JOB_COMPLETED
+  SYSTEM_ALERT
+}
+
+enum DevicePlatform {
+  IOS
+  ANDROID
+  WEB
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  ADMIN
+  OPS
+  FINANCE
+  SUPPORT
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  VIEW
+  APPROVE
+  REJECT
+}
+
+model User {
+  id        String    @id @default(uuid())
+  phone     String    @unique
+  name      String?
+  email     String?
+  roles     UserRole[]
+  rating    Decimal?  @db.Decimal(3, 2)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  driver         Driver?
+  jobsAsCustomer Job[]  @relation("CustomerJobs")
+  quotes         Quote[]
+  refreshTokens  RefreshToken[]
+  wallet         Wallet?
+  payments       Payment[]
+  payouts        Payout[]
+  deviceTokens   DeviceToken[]
+  notifications  Notification[]
+  adminProfile   AdminProfile?
+  vehicles       CustomerVehicle[] @relation("CustomerVehicles")
+  ratingsGiven   Rating[]          @relation("CustomerRatings")
+  supportTickets SupportTicket[]   @relation("SupportTickets")
+
+  @@index([createdAt])
+}
+
+model Driver {
+  id           String       @id @default(uuid())
+  userId       String       @unique
+  status       DriverStatus @default(OFFLINE)
+  kycStatus    KycStatus    @default(NOT_SUBMITTED)
+  avgRating    Decimal?     @db.Decimal(3, 2)
+  capabilities ServiceCode[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle     Vehicle?
+  jobs        Job[]          @relation("DriverJobs")
+  location    DriverLocation?
+  payouts     Payout[]
+  kycDocuments KycDocument[]
+  ratings     Rating[]
+
+  @@index([status])
+}
+
+model Vehicle {
+  id        String   @id @default(uuid())
+  driverId  String   @unique
+  type      String?
+  plateNo   String?
+  make      String?
+  model     String?
+  year      Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  driver Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+}
+
+model Service {
+  id        String      @id @default(uuid())
+  code      ServiceCode @unique
+  name      String
+  isActive  Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  pricingRules PricingRule[]
+  quotes       Quote[]
+  jobs         Job[]
+}
+
+model PricingRule {
+  id            String   @id @default(uuid())
+  city          String
+  serviceId     String
+  baseFare      Int
+  perKm         Int
+  perMin        Int
+  minFare       Int
+  surgeJson     Json?
+  platformFee   Int
+  taxPct        Decimal  @db.Decimal(5, 2)
+  effectiveFrom DateTime
+  version       Int
+  createdAt     DateTime @default(now())
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+
+  @@unique([city, serviceId, version])
+  @@index([city, serviceId, effectiveFrom])
+}
+
+model Quote {
+  id           String   @id @default(uuid())
+  customerId   String
+  serviceId    String
+  vehicleClass String?
+  originGeo    Unsupported("geography(Point,4326)")
+  destGeo      Unsupported("geography(Point,4326)")?
+  distanceKm   Decimal  @db.Decimal(10, 3)
+  etaMin       Int
+  price        Int
+  breakdown    Json
+  createdAt    DateTime @default(now())
+
+  customer User    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  service  Service @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  job      Job?
+
+  @@index([customerId, createdAt])
+}
+
+model Job {
+  id          String   @id @default(uuid())
+  customerId  String
+  driverId    String?
+  serviceId   String
+  quoteId     String   @unique
+  originGeo   Unsupported("geography(Point,4326)")
+  destGeo     Unsupported("geography(Point,4326)")?
+  quotedPrice Int
+  state       JobState @default(CREATED)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  customer      User              @relation("CustomerJobs", fields: [customerId], references: [id], onDelete: Restrict)
+  driver        Driver?           @relation("DriverJobs", fields: [driverId], references: [id], onDelete: SetNull)
+  service       Service           @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  quote         Quote             @relation(fields: [quoteId], references: [id], onDelete: Restrict)
+  statusHistory JobStatusHistory[]
+  payment       Payment?
+  rating        Rating?
+
+  @@index([state, createdAt])
+  @@index([driverId, state])
+}
+
+model JobStatusHistory {
+  id        String   @id @default(uuid())
+  jobId     String
+  state     JobState
+  byActor   String
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId, createdAt])
+}
+
+model DriverLocation {
+  driverId  String   @id
+  location  Unsupported("geography(Point,4326)")
+  heading   Int?
+  speed     Decimal? @db.Decimal(10, 3)
+  updatedAt DateTime @updatedAt
+
+  driver Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  revokedAt DateTime?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model Payment {
+  id              String        @id @default(uuid())
+  jobId           String        @unique
+  userId          String
+  razorpayOrderId String?       @unique
+  razorpayPaymentId String?     @unique
+  razorpaySignature String?
+  amount          Int
+  currency        String        @default("INR")
+  status          PaymentStatus @default(PENDING)
+  method          PaymentMethod?
+  description     String?
+  metadata        Json?
+  capturedAt      DateTime?
+  refundedAmount  Int           @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  job  Job  @relation(fields: [jobId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@index([razorpayOrderId])
+  @@index([razorpayPaymentId])
+}
+
+model Wallet {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  balance   Int      @default(0)
+  locked    Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions WalletTransaction[]
+
+  @@index([userId])
+}
+
+model WalletTransaction {
+  id          String            @id @default(uuid())
+  walletId    String
+  type        TransactionType
+  category    TransactionCategory
+  amount      Int
+  balanceAfter Int
+  description String?
+  referenceId String?            // paymentId, payoutId, jobId, etc.
+  metadata    Json?
+  createdAt   DateTime           @default(now())
+
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([walletId, createdAt])
+  @@index([referenceId])
+  @@index([category, createdAt])
+}
+
+model Payout {
+  id              String       @id @default(uuid())
+  driverId        String
+  userId          String
+  walletId        String
+  amount          Int
+  razorpayPayoutId String?      @unique
+  status          PayoutStatus  @default(PENDING)
+  failureReason   String?
+  processedAt     DateTime?
+  metadata        Json?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  driver Driver @relation(fields: [driverId], references: [id], onDelete: Restrict)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([driverId, createdAt])
+  @@index([status, createdAt])
+  @@index([razorpayPayoutId])
+}
+
+model DeviceToken {
+  id        String         @id @default(uuid())
+  userId    String
+  token     String         @unique
+  platform  DevicePlatform
+  fcmToken  String?
+  apnsToken String?
+  isActive  Boolean        @default(true)
+  lastUsedAt DateTime?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isActive])
+  @@index([token])
+}
+
+model Notification {
+  id          String             @id @default(uuid())
+  userId      String
+  type        NotificationType
+  category    NotificationCategory
+  title       String
+  body        String
+  data        Json?
+  status      NotificationStatus  @default(PENDING)
+  sentAt      DateTime?
+  deliveredAt DateTime?
+  failureReason String?
+  retryCount  Int                @default(0)
+  referenceId String?            // jobId, paymentId, etc.
+  metadata    Json?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@index([category, createdAt])
+  @@index([referenceId])
+}
+
+model AdminProfile {
+  id        String    @id @default(uuid())
+  userId    String    @unique
+  role      AdminRole @default(ADMIN)
+  isActive  Boolean   @default(true)
+  lastLoginAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  auditLogs AuditLog[]
+
+  @@index([role, isActive])
+}
+
+model AuditLog {
+  id          String      @id @default(uuid())
+  adminId     String
+  action      AuditAction
+  resourceType String     // "User", "Driver", "Job", "Payment", etc.
+  resourceId  String?
+  changes     Json?       // before/after values
+  ipAddress   String?
+  userAgent   String?
+  metadata    Json?
+  createdAt   DateTime    @default(now())
+
+  admin AdminProfile @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId, createdAt])
+  @@index([resourceType, resourceId])
+  @@index([action, createdAt])
+}
+
+model FeatureFlag {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  name        String
+  description String?
+  isEnabled   Boolean  @default(false)
+  targetUsers Json?    // user IDs, roles, or conditions
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([key, isEnabled])
+}
+
+enum RatingValue {
+  ONE
+  TWO
+  THREE
+  FOUR
+  FIVE
+}
+
+enum SupportTicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum SupportTicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum DocumentType {
+  DRIVER_LICENSE
+  VEHICLE_REGISTRATION
+  INSURANCE
+  AADHAAR
+  PAN
+  OTHER
+}
+
+model Rating {
+  id          String      @id @default(uuid())
+  jobId       String      @unique
+  customerId  String
+  driverId    String
+  rating      RatingValue
+  comment     String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  job      Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  customer User   @relation("CustomerRatings", fields: [customerId], references: [id], onDelete: Cascade)
+  driver   Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@index([driverId, createdAt])
+  @@index([customerId, createdAt])
+  @@index([rating])
+}
+
+model CustomerVehicle {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String
+  make      String?
+  model     String?
+  year      Int?
+  plateNo   String?
+  color     String?
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation("CustomerVehicles", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isDefault])
+}
+
+model KycDocument {
+  id          String       @id @default(uuid())
+  driverId    String
+  type        DocumentType
+  documentUrl String
+  status      KycStatus   @default(PENDING)
+  verifiedBy  String?
+  verifiedAt  DateTime?
+  rejectionReason String?
+  metadata    Json?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  driver Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@index([driverId, type])
+  @@index([status])
+}
+
+model SupportTicket {
+  id          String              @id @default(uuid())
+  userId      String
+  jobId       String?
+  subject     String
+  description String
+  status      SupportTicketStatus @default(OPEN)
+  priority    SupportTicketPriority @default(MEDIUM)
+  assignedTo  String?
+  resolvedAt  DateTime?
+  metadata    Json?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  user User @relation("SupportTickets", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([status, priority])
+  @@index([jobId])
+}

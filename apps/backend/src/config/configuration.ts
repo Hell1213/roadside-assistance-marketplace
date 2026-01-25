@@ -1,0 +1,23 @@
+export const configuration = () => ({
+  port: parseInt(process.env.PORT ?? '3001', 10),
+  databaseUrl: process.env.DATABASE_URL,
+  redisUrl: process.env.REDIS_URL,
+  jwtAccessSecret: process.env.JWT_ACCESS_SECRET ?? 'dev_access_secret_change_me',
+  jwtRefreshSecret: process.env.JWT_REFRESH_SECRET ?? 'dev_refresh_secret_change_me',
+  razorpayKeyId: process.env.RAZORPAY_KEY_ID,
+  razorpayKeySecret: process.env.RAZORPAY_KEY_SECRET,
+  razorpayWebhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET,
+  platformCommissionPct: parseFloat(process.env.PLATFORM_COMMISSION_PCT ?? '15'),
+  fcmServiceAccountKeyPath: process.env.FCM_SERVICE_ACCOUNT_KEY_PATH,
+  fcmProjectId: process.env.FCM_PROJECT_ID,
+  fcmPrivateKey: process.env.FCM_PRIVATE_KEY,
+  fcmClientEmail: process.env.FCM_CLIENT_EMAIL,
+  smsProvider: process.env.SMS_PROVIDER || 'msg91',
+  msg91AuthKey: process.env.MSG91_AUTH_KEY,
+  msg91SenderId: process.env.MSG91_SENDER_ID || 'RASAPP',
+  awsRegion: process.env.AWS_REGION || 'ap-south-1',
+  awsAccessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  awsSecretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  snsSenderId: process.env.SNS_SENDER_ID || 'RASAPP',
+});
+
