@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:shared/shared.dart';
+import '../../providers/auth_provider.dart';
 import 'otp_verification_screen.dart';
 
 class PhoneInputScreen extends StatefulWidget {
-  const PhoneInputScreen({super.key});
+  final String? role; // 'CUSTOMER', 'DRIVER', 'ADMIN' - defaults to 'CUSTOMER'
+
+  const PhoneInputScreen({super.key, this.role});
 
   @override
   State<PhoneInputScreen> createState() => _PhoneInputScreenState();
@@ -13,8 +17,9 @@ class PhoneInputScreen extends StatefulWidget {
 class _PhoneInputScreenState extends State<PhoneInputScreen> {
   final _phoneController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  String _selectedCountryCode = '+1';
+  String _selectedCountryCode = '+91'; // Default to India
   bool _isLoading = false;
+  String? _errorMessage;
 
   final List<Map<String, String>> _countryCodes = [
     {'code': '+1', 'country': 'US'},
@@ -42,30 +47,53 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
   Future<void> _sendOTP() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
 
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final phoneNumber = '$_selectedCountryCode${_phoneController.text}';
+      final role = widget.role ?? 'CUSTOMER';
 
-    setState(() => _isLoading = false);
-
-    if (mounted) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => OTPVerificationScreen(
-            phoneNumber: '$_selectedCountryCode${_phoneController.text}',
-          ),
-        ),
+      await authProvider.requestOtp(
+        phone: phoneNumber,
+        role: role,
       );
+
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => OTPVerificationScreen(
+              phoneNumber: phoneNumber,
+              role: role,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _isLoading = false;
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final role = widget.role ?? 'CUSTOMER';
+    final title = role == 'ADMIN' 
+        ? 'Admin Sign In' 
+        : role == 'DRIVER' 
+            ? 'Driver Sign In' 
+            : 'Sign In';
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Sign In'),
+        title: Text(title),
         backgroundColor: AppColors.white,
         elevation: 0,
       ),
@@ -95,6 +123,32 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
                     color: AppColors.textSecondary,
                   ),
                 ),
+                
+                if (_errorMessage != null) ...[
+                  const SizedBox(height: AppDimensions.paddingM),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.error),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.error_outline, color: AppColors.error, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _errorMessage!,
+                            style: AppTypography.bodyMedium.copyWith(
+                              color: AppColors.error,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 
                 const SizedBox(height: AppDimensions.paddingXXL),
                 
