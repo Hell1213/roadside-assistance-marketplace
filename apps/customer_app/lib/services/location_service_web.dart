@@ -1,6 +1,7 @@
 import 'dart:js' as js;
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'dart:async';
+import 'package:geocoding/geocoding.dart';
 
 // Web-specific implementation using JavaScript interop
 class LocationServicePlatform {
@@ -66,6 +67,21 @@ class LocationServicePlatform {
     } catch (e) {
       print('Place details error: $e');
       return null;
+    }
+  }
+
+  static Future<String> getAddressFromCoordinates(double lat, double lng) async {
+    try {
+      // Use geocoding package for web
+      final placemarks = await placemarkFromCoordinates(lat, lng);
+      if (placemarks.isNotEmpty) {
+        final place = placemarks[0];
+        return '${place.street}, ${place.locality}, ${place.administrativeArea} ${place.postalCode}';
+      }
+      return 'Address not found';
+    } catch (e) {
+      print('Reverse geocode error: $e');
+      return 'Address not available';
     }
   }
 }
