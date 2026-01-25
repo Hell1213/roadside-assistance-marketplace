@@ -33,6 +33,20 @@ dependencies:
   cupertino_icons: ^1.0.8
   shared:
     path: ../../packages/shared
+  
+  # HTTP & API
+  dio: ^5.4.0
+  socket_io_client: ^2.0.3+1
+  
+  # Storage & Security
+  flutter_secure_storage: ^9.0.0
+  shared_preferences: ^2.2.2
+  
+  # State Management
+  provider: ^6.1.1
+  
+  # Location
+  geolocator: ^10.1.0
 
 dev_dependencies:
   flutter_test:
